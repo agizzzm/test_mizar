@@ -18,7 +18,8 @@ services:
             - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
         volumes:
             - database:/var/lib/postgresql/data
-
+        ports:
+            - 5432:5432 # прокинем наружу, проще работать через pgadmin, чем консоль
     php:
         container_name: mizar_app
         build:
