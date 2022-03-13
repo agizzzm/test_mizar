@@ -2,6 +2,7 @@
 
 namespace app\commands;
 
+use app\models\helpers\StringHelper;
 use Yii;
 use app\models\service\Company;
 use yii\console\Controller;
@@ -43,7 +44,7 @@ class CompanyController extends Controller
             echo sprintf("%s is not a valid url", $this->url);
         }
 
-        $name = strip_tags(addslashes($this->name));
+        $name = StringHelper::filterString($this->name);
 
         $company = new Company();
         $company->name = $name;
