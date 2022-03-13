@@ -13,7 +13,7 @@ use Yii;
  * @property string $email Email
  * @property string $application Application
  * @property int|null $parent_id Parent User Id
- * @property string $created_at Created At
+ * @property string|null $created_at Created At
  * @property string|null $updated_at Updated At
  * @property string|null $deleted_at Deleted At
  * @property int $is_deleted Is Deleted
@@ -39,8 +39,8 @@ class User extends \yii\db\ActiveRecord
             [['parent_id', 'is_deleted'], 'integer'],
             [['created_at', 'updated_at', 'deleted_at'], 'safe'],
             [['first_name', 'last_name', 'email', 'application'], 'string', 'max' => 255],
+            [['application'], 'unique'],
             [['email'], 'unique'],
-            [['last_name'], 'unique'],
         ];
     }
 
