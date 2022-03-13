@@ -1,63 +1,37 @@
 <?php
 
-namespace app\models\db;
+namespace app\models\service;
 
 use Yii;
 
-/**
- * This is the model class for table "users".
- *
- * @property int $id
- * @property string $first_name First name
- * @property string $last_name Last name
- * @property string $email Email
- * @property string $application Application
- * @property string $created_at Created At
- * @property string|null $updated_at Updated At
- * @property string|null $deleted_at Deleted At
- * @property int $is_deleted Is Deleted
- */
-class User extends \yii\db\ActiveRecord
+class User extends \app\models\db\User
 {
-    /**
-     * {@inheritdoc}
-     */
-    public static function tableName()
-    {
-        return 'users';
-    }
+    const IS_DELETED = 1;
+    const IS_NOT_DELETED = 0;
 
     /**
-     * {@inheritdoc}
+     * @param $userId
+     * @return bool
      */
-    public function rules()
+    public static function softDelete($userId)
     {
-        return [
-            [['first_name', 'last_name', 'email', 'application'], 'required'],
-            [['created_at', 'updated_at', 'deleted_at'], 'safe'],
-            [['is_deleted'], 'default', 'value' => null],
-            [['is_deleted'], 'integer'],
-            [['first_name', 'last_name', 'email', 'application'], 'string', 'max' => 255],
-            [['email'], 'unique'],
-            [['last_name'], 'unique'],
-        ];
-    }
+        /** @var $user \app\models\service\User */
+        $user = self::find()->where(['id' => $userId])->one();
+        if (empty($user)) {
+            Yii::error(sprintf("user with id %s not found ", $userId));
 
-    /**
-     * {@inheritdoc}
-     */
-    public function attributeLabels()
-    {
-        return [
-            'id' => 'ID',
-            'first_name' => 'First Name',
-            'last_name' => 'Last Name',
-            'email' => 'Email',
-            'application' => 'Application',
-            'created_at' => 'Created At',
-            'updated_at' => 'Updated At',
-            'deleted_at' => 'Deleted At',
-            'is_deleted' => 'Is Deleted',
-        ];
+            return false;
+        }
+
+        $user->is_deleted = self::IS_DELETED;
+        $user->deleted_at = microtime(true);
+        if (!$user->save()) {
+            Yii::error(sprintf("user with id %s not found ", $userId));
+            Yii::error(var_export($user->getErrors(), true));
+
+            return false;
+        }
+
+        return true;
     }
 }
