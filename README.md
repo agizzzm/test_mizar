@@ -34,3 +34,6 @@ If port `10000` doesn't work, check `APP_PORT` variable in `.env` for the correc
 
 ## Create company (CLI mode)
 docker-compose exec -T php php yii company/create --name=testcompany --url=https://google.ru
+
+## REST API 
+[docs here](REST.md) 
