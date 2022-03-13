@@ -2,127 +2,138 @@
 
 namespace app\controllers;
 
+use app\models\helpers\StringHelper;
+use app\models\service\User;
 use Yii;
 use yii\filters\AccessControl;
-use yii\web\Controller;
+use yii\rest\ActiveController;
 use yii\web\Response;
-use yii\filters\VerbFilter;
-use app\models\LoginForm;
-use app\models\ContactForm;
+use app\models\service\Company;
 
-class SiteController extends Controller
+class UserController extends ActiveController
 {
-    /**
-     * {@inheritdoc}
-     */
+    public $modelClass = 'app\models\service\User';
+
     public function behaviors()
     {
         return [
-            'access' => [
+            'contentNegotiator' => [
+                'class'   => 'yii\filters\ContentNegotiator',
+                'formats' => [// Restful будет реагировать на разные форматы в соответствии с разными запросами клиентов
+                    'application/json' => Response::FORMAT_JSON, // Установите здесь, чтобы открывать только JSON
+                ],
+            ],
+            'access'            => [
                 'class' => AccessControl::className(),
-                'only' => ['logout'],
+                'user'  => false,
                 'rules' => [
                     [
-                        'actions' => ['logout'],
-                        'allow' => true,
-                        'roles' => ['@'],
+                        'allow'         => true,
+                        'matchCallback' => function ($rule, $action) {
+                            $data = Yii::$app->getRequest()->getBodyParams();
+
+                            if (isset($data['access_token'])) {
+                                return Company::checkToken($data['access_token']);
+                            }
+
+                            return false;
+                        },
                     ],
                 ],
             ],
-            'verbs' => [
-                'class' => VerbFilter::className(),
-                'actions' => [
-                    'logout' => ['post'],
-                ],
-            ],
         ];
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function actions()
+    public function actionGetUser($id)
     {
-        return [
-            'error' => [
-                'class' => 'yii\web\ErrorAction',
-            ],
-            'captcha' => [
-                'class' => 'yii\captcha\CaptchaAction',
-                'fixedVerifyCode' => YII_ENV_TEST ? 'testme' : null,
-            ],
-        ];
-    }
-
-    /**
-     * Displays homepage.
-     *
-     * @return string
-     */
-    public function actionIndex()
-    {
-        return $this->render('index');
-    }
-
-    /**
-     * Login action.
-     *
-     * @return Response|string
-     */
-    public function actionLogin()
-    {
-        if (!Yii::$app->user->isGuest) {
-            return $this->goHome();
+        $user = User::getUser($id);
+        if (empty($user) || $user->is_deleted == User::IS_DELETED) {
+            return ['result' => 0, 'error' => "user not found"];
         }
 
-        $model = new LoginForm();
-        if ($model->load(Yii::$app->request->post()) && $model->login()) {
-            return $this->goBack();
+        return ['result' => 1, 'user' => $user];
+    }
+
+    public function actionCreateUser()
+    {
+        $params = Yii::$app->getRequest()->getBodyParams();
+
+        $requiredFields = ['first_name', 'last_name', 'email', 'application'];
+
+        foreach ($requiredFields as $field) {
+            if (!isset($params[$field]) || empty($params[$field])) {
+                return ['result' => 0, 'error' => sprintf("%s is required field", $field)];
+            }
         }
 
-        $model->password = '';
-        return $this->render('login', [
-            'model' => $model,
-        ]);
-    }
+        foreach ($params as $paramName => &$param) {
+            if ($paramName == 'email') {
+                if (!filter_var($param, FILTER_VALIDATE_EMAIL)) {
+                    return ['result' => 0, 'error' => "email is invalid"];
+                }
+            } elseif ($paramName == 'parent_id') {
+                if (!filter_var($param, FILTER_VALIDATE_INT)) {
+                    return ['result' => 0, 'error' => "parent is invalid"];
+                }
 
-    /**
-     * Logout action.
-     *
-     * @return Response
-     */
-    public function actionLogout()
-    {
-        Yii::$app->user->logout();
+                $parentUser = User::getUser($param);
+                if (empty($parentUser)) {
+                    return ['result' => 0, 'error' => "parent user not found"];
+                }
 
-        return $this->goHome();
-    }
+                if (!empty($parentUser->parent_id)) {
+                    return ['result' => 0, 'error' => "can't set parent user to current"];
+                }
 
-    /**
-     * Displays contact page.
-     *
-     * @return Response|string
-     */
-    public function actionContact()
-    {
-        $model = new ContactForm();
-        if ($model->load(Yii::$app->request->post()) && $model->contact(Yii::$app->params['adminEmail'])) {
-            Yii::$app->session->setFlash('contactFormSubmitted');
-
-            return $this->refresh();
+            } else {
+                $param = StringHelper::filterString($param);
+            }
         }
-        return $this->render('contact', [
-            'model' => $model,
-        ]);
+
+        $id = User::createUser($params);
+        if (empty($id)) {
+            return ['result' => 0, 'error' => "can't create user"];
+        }
+
+        return ['result' => 1, "userId" => $id];
     }
 
-    /**
-     * Displays about page.
-     *
-     * @return string
-     */
-    public function actionAbout()
+    public function actionDeleteUser($id)
     {
-        return $this->render('about');
+        $user = User::getUser($id);
+        if (empty($user)) {
+            return ['result' => 0, 'error' => "user not found"];
+        }
+
+        if (User::softDelete($id)) {
+            return ['result' => 1];
+        }
+
+        return ['result' => 1, 'error' => "can't delete user"];
+    }
+
+    public function actionUpdateUser($id)
+    {
+        $user = User::getUser($id);
+        if (empty($user) || $user->is_deleted == User::IS_DELETED) {
+            return ['result' => 0, 'error' => "user not found"];
+        }
+
+        $params = Yii::$app->getRequest()->getBodyParams();
+
+        $updateFields = ['first_name', 'last_name'];
+
+        foreach ($params as $paramName => &$param) {
+            if (!in_array($paramName, $updateFields)) {
+                unset($params[$paramName]);
+            }
+            $param = StringHelper::filterString($param);
+        }
+
+        if (!User::updateUser($id, $params)) {
+            return ['result' => 0, 'error' => "can't update user"];
+        }
+
+        return ['result' => 1];
     }
 }
