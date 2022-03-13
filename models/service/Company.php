@@ -1,51 +1,28 @@
 <?php
 
-namespace app\models\db;
+namespace app\models\service;
 
-use Yii;
-
-/**
- * This is the model class for table "companies".
- *
- * @property int $id
- * @property string $name Name
- * @property string $url URL
- * @property string|null $access_token Token
- * @property string $created_at Created At
- */
-class Company extends \yii\db\ActiveRecord
+class Company extends \app\models\db\Company
 {
     /**
-     * {@inheritdoc}
+     * @return string
      */
-    public static function tableName()
+    public function generateToken()
     {
-        return 'companies';
+        return md5($this->name . $this->url . mktime(0));
     }
 
     /**
-     * {@inheritdoc}
+     * @param string $token
+     * @return bool
      */
-    public function rules()
+    public function checkToken(string $token)
     {
-        return [
-            [['name', 'url'], 'required'],
-            [['name', 'url', 'access_token'], 'string'],
-            [['created_at'], 'safe'],
-        ];
-    }
+        $company = self::find()->where(['access_token' => $token])->one();
+        if (empty($company)) {
+            return false;
+        }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function attributeLabels()
-    {
-        return [
-            'id' => 'ID',
-            'name' => 'Name',
-            'url' => 'Url',
-            'access_token' => 'Access Token',
-            'created_at' => 'Created At',
-        ];
+        return true;
     }
 }

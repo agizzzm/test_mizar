@@ -1,33 +1,63 @@
 <?php
-/**
- * @link http://www.yiiframework.com/
- * @copyright Copyright (c) 2008 Yii Software LLC
- * @license http://www.yiiframework.com/license/
- */
 
 namespace app\commands;
 
+use Yii;
+use app\models\service\Company;
 use yii\console\Controller;
 use yii\console\ExitCode;
 
 /**
- * This command echoes the first argument that you have entered.
+ * This command creates new company and returns its token
  *
- * This command is provided as an example for you to learn how to create console commands.
- *
- * @author Qiang Xue <qiang.xue@gmail.com>
- * @since 2.0
  */
-class HelloController extends Controller
+class CompanyController extends Controller
 {
-    /**
-     * This command echoes what you have entered as the message.
-     * @param string $message the message to be echoed.
-     * @return int Exit code
-     */
-    public function actionIndex($message = 'hello world')
+    public $name;
+    public $url;
+
+    public function options($actionID)
     {
-        echo $message . "\n";
+        return array_merge(parent::options($actionID), $this->args());
+    }
+
+    public function args()
+    {
+        return [
+            'name',
+            'url',
+        ];
+    }
+
+    public function actionCreate()
+    {
+        foreach ($this->args() as $arg) {
+            if (empty($this->{$arg})) {
+                echo sprintf("%s can't be empty", $arg);
+
+                return ExitCode::IOERR;
+            }
+        }
+
+        if (!filter_var($this->url, FILTER_VALIDATE_URL)) {
+            echo sprintf("%s is not a valid url", $this->url);
+        }
+
+        $name = strip_tags(addslashes($this->name));
+
+        $company = new Company();
+        $company->name = $name;
+        $company->url = $this->url;
+        $company->access_token = $company->generateToken();
+        if (!$company->save()) {
+            Yii::error("can't create company");
+            Yii::error(var_export($company->getErrors(), true));
+            echo "can't create company";
+
+            return ExitCode::IOERR;
+        }
+
+        echo $company->access_token;
 
         return ExitCode::OK;
     }
