@@ -8,4 +8,9 @@ class StringHelper
     {
         return strip_tags(addslashes($string));
     }
+
+    public static function notfilterSting(string $string)
+    {
+        return stripslashes($string);
+    }
 }

@@ -51,6 +51,10 @@ class UserController extends ActiveController
             return ['result' => 0, 'error' => "user not found"];
         }
 
+        $user->first_name = isset($user->first_name) ? StringHelper::notfilterSting($user->first_name) : $user->first_name;
+        $user->last_name = isset($user->last_name) ? StringHelper::notfilterSting($user->last_name) : $user->last_name;
+        $user->application = isset($user->application) ? StringHelper::notfilterSting($user->application) : $user->application;
+
         return ['result' => 1, 'user' => $user];
     }
 
