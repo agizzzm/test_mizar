@@ -16,7 +16,7 @@ class Company extends \app\models\db\Company
      * @param string $token
      * @return bool
      */
-    public function checkToken(string $token)
+    public static function checkToken(string $token)
     {
         $company = self::find()->where(['access_token' => $token])->one();
         if (empty($company)) {
